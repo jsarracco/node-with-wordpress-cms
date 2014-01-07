@@ -40,6 +40,9 @@ Vagrant provisioning based on [Varying Vagrant Vagrants](https://github.com/10up
 
 1. The provision-post.sh file will add additional node modules and start the NodeJS Server, then you can go to:
     * [http://local.wordpress.dev:3000/](http://local.wordpress.dev:3000/) for WordPress stable
+1. Sample posts can be viewed here:
+    * Hello World Post - [http://local.wordpress.dev/hello-world](http://local.wordpress.dev/hello-world) - [http://local.wordpress.dev:3000/hello-world](http://local.wordpress.dev:3000/hello-world)
+    * Sample Page - [http://local.wordpress.dev/sample-page](http://local.wordpress.dev/sample-page) - [http://local.wordpress.dev:3000/sample-page](http://local.wordpress.dev:3000/sample-page)
 1. Log into [http://local.wordpress.dev/](http://local.wordpress.dev/) admin and add a page or a post, the same url should appear on the NodeJS Server.
 
 #### Caveats
