@@ -17,7 +17,7 @@ cd /srv/www/node/
 # this script runs under root, assign permission to the vagrant user for npm
 sudo mkdir -p /usr/local/{share/man,bin,lib/node,lib/node_modules,include/node}
 sudo chown -R vagrant /usr/local/{share/man,bin,lib/node,lib/node_modules,include/node}
-sudo chown -R vagrant /usr/bin/node
+sudo chown -R vagrant /usr/bin/{node,npm}
 
 echo "Adding Express for Node..."
 sudo npm install -y -g express
@@ -25,6 +25,9 @@ sudo npm install -y -g express
 echo "Adding additional packages for Node..."
 sudo npm install -y request
 sudo npm install -y -g forever
+
+sudo npm install -y -g grunt-cli
+sudo npm install -y -g bower
 
 # provision express if it is not there
 if [ ! -d '/srv/www/node/wp-ingester' ]; then
