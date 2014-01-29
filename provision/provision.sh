@@ -72,6 +72,7 @@ apt_package_check_list=(
 	imagemagick
 	subversion
 	git-core
+	zip
 	unzip
 	ngrep
 	curl
@@ -193,48 +194,20 @@ if [[ $ping_result == *bytes?from* ]]; then
 	# master branch on GitHub repository.
 	if [[ -n "$(composer --version | grep -q 'Composer version')" ]]; then
 		echo "Updating Composer..."
-		composer self-update
+		COMPOSER_HOME=/usr/local/src/composer composer self-update
+		COMPOSER_HOME=/usr/local/src/composer composer global update
 	else
 		echo "Installing Composer..."
 		curl -sS https://getcomposer.org/installer | php
 		chmod +x composer.phar
 		mv composer.phar /usr/local/bin/composer
-	fi
 
-	# PHPUnit
-	#
-	# Check that PHPUnit, Mockery, and Hamcrest are all successfully installed.
-	# If not, then Composer should be given another shot at it. Versions for
-	# these packages are controlled in `/srv/config/phpunit-composer.json`.
-	if [[ ! -d /usr/local/src/vvv-phpunit ]]; then
-		echo "Installing PHPUnit, Hamcrest and Mockery..."
-		mkdir -p /usr/local/src/vvv-phpunit
-		cp /srv/config/phpunit-composer.json /usr/local/src/vvv-phpunit/composer.json
-		sh -c "cd /usr/local/src/vvv-phpunit && composer install"
-	else
-		cd /usr/local/src/vvv-phpunit
-		if [[ -n "$(composer show -i | grep -q 'mockery')" ]]; then
-			echo "Mockery installed"
-		else
-			vvvphpunit_update=1
-		fi
-		if [[ -n "$(composer show -i | grep -q 'phpunit')" ]]; then
-			echo "PHPUnit installed"
-		else
-			vvvphpunit_update=1
-		fi
-		if [[ -n "$(composer show -i | grep -q 'hamcrest')" ]]; then
-			echo "Hamcrest installed"
-		else
-			vvvphpunit_update=1
-		fi
-		cd ~/
-	fi
-
-	if [[ "$vvvphpunit_update" = 1 ]]; then
-		echo "Update PHPUnit, Hamcrest and Mockery..."
-		cp /srv/config/phpunit-composer.json /usr/local/src/vvv-phpunit/composer.json
-		sh -c "cd /usr/local/src/vvv-phpunit && composer update"
+		COMPOSER_HOME=/usr/local/src/composer composer -q global require --no-update phpunit/phpunit:3.7.*
+		COMPOSER_HOME=/usr/local/src/composer composer -q global require --no-update phpunit/php-invoker:1.1.*
+		COMPOSER_HOME=/usr/local/src/composer composer -q global require --no-update mockery/mockery:0.8.*
+		COMPOSER_HOME=/usr/local/src/composer composer -q global require --no-update d11wtq/boris:v1.0.2
+		COMPOSER_HOME=/usr/local/src/composer composer -q global config bin-dir /usr/local/bin
+		COMPOSER_HOME=/usr/local/src/composer composer global update
 	fi
 
 	# Grunt
@@ -453,14 +426,14 @@ if [[ $ping_result == *bytes?from* ]]; then
 		rm latest.tar.gz
 		cd /srv/www/wordpress-default
 		echo "Configuring WordPress Stable..."
-		wp core config --dbname=wordpress_default --dbuser=wp --dbpass=wp --quiet --extra-php <<PHP
+		wp core config --dbname=wordpress_default --dbuser=wp --dbpass=wp --quiet --extra-php --allow-root <<PHP
 define( 'WP_DEBUG', true );
 PHP
-		wp core install --url=local.wordpress.dev --quiet --title="Local WordPress Dev" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password"
+		wp core install --url=local.wordpress.dev --quiet --title="Local WordPress Dev" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password" --allow-root 
 	else
 		echo "Updating WordPress Stable..."
 		cd /srv/www/wordpress-default
-		wp core upgrade
+		wp core upgrade --allow-root 
 	fi
 
 	# Checkout, install and configure WordPress trunk via core.svn
@@ -469,10 +442,10 @@ PHP
 		svn checkout http://core.svn.wordpress.org/trunk/ /srv/www/wordpress-trunk
 		cd /srv/www/wordpress-trunk
 		echo "Configuring WordPress trunk..."
-		wp core config --dbname=wordpress_trunk --dbuser=wp --dbpass=wp --quiet --extra-php <<PHP
+		wp core config --dbname=wordpress_trunk --dbuser=wp --dbpass=wp --quiet --extra-php --allow-root <<PHP
 define( 'WP_DEBUG', true );
 PHP
-		wp core install --url=local.wordpress-trunk.dev --quiet --title="Local WordPress Trunk Dev" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password"
+		wp core install --url=local.wordpress-trunk.dev --quiet --title="Local WordPress Trunk Dev" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password" --allow-root 
 	else
 		echo "Updating WordPress trunk..."
 		cd /srv/www/wordpress-trunk
@@ -485,7 +458,7 @@ PHP
 		svn checkout http://develop.svn.wordpress.org/trunk/ /srv/www/wordpress-develop
 		cd /srv/www/wordpress-develop/src/
 		echo "Configuring WordPress develop..."
-		wp core config --dbname=wordpress_develop --dbuser=wp --dbpass=wp --quiet --extra-php <<PHP
+		wp core config --dbname=wordpress_develop --dbuser=wp --dbpass=wp --quiet --extra-php --allow-root <<PHP
 // Allow (src|build).wordpress-develop.dev to share the same database
 if ( 'build' == basename( dirname( __FILE__) ) ) {
 	define( 'WP_HOME', 'http://build.wordpress-develop.dev' );
@@ -494,7 +467,7 @@ if ( 'build' == basename( dirname( __FILE__) ) ) {
 
 define( 'WP_DEBUG', true );
 PHP
-		wp core install --url=src.wordpress-develop.dev --quiet --title="WordPress Develop" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password"
+		wp core install --url=src.wordpress-develop.dev --quiet --title="WordPress Develop" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password" --allow-root 
 		cp /srv/config/wordpress-config/wp-tests-config.php /srv/www/wordpress-develop/
 		cd /srv/www/wordpress-develop/
 		npm install &>/dev/null
@@ -513,11 +486,11 @@ PHP
 
 	# Download phpMyAdmin
 	if [[ ! -d /srv/www/default/database-admin ]]; then
-		echo "Downloading phpMyAdmin 4.0.10..."
+		echo "Downloading phpMyAdmin 4.1.3..."
 		cd /srv/www/default
-		wget -q -O phpmyadmin.tar.gz 'http://sourceforge.net/projects/phpmyadmin/files/phpMyAdmin/4.1.2/phpMyAdmin-4.1.2-all-languages.tar.gz/download'
+		wget -q -O phpmyadmin.tar.gz 'http://sourceforge.net/projects/phpmyadmin/files/phpMyAdmin/4.1.3/phpMyAdmin-4.1.3-all-languages.tar.gz/download'
 		tar -xf phpmyadmin.tar.gz
-		mv phpMyAdmin-4.1.2-all-languages database-admin
+		mv phpMyAdmin-4.1.3-all-languages database-admin
 		rm phpmyadmin.tar.gz
 	else
 		echo "PHPMyAdmin already installed."
